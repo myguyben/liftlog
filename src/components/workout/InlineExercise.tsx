@@ -1,11 +1,11 @@
 import type { ExerciseEntry } from '../../db/models';
 import { useExerciseSets, addSet, deleteExerciseEntry } from '../../hooks/useWorkouts';
 import { useOverload } from '../../hooks/useOverload';
-import { SetRow } from './SetRow';
+import { InlineSetRow } from './InlineSetRow';
 import { OverloadBadge } from '../recommendations/OverloadBadge';
 import { LastPerformance } from '../recommendations/LastPerformance';
 
-export function ExerciseEntryCard({ entry }: { entry: ExerciseEntry }) {
+export function InlineExercise({ entry }: { entry: ExerciseEntry }) {
   const sets = useExerciseSets(entry.id);
   const recommendation = useOverload(entry.name);
 
@@ -25,14 +25,15 @@ export function ExerciseEntryCard({ entry }: { entry: ExerciseEntry }) {
   }
 
   return (
-    <div className="bg-notes-card rounded-[var(--radius-card)] px-4 py-3">
-      <div className="flex items-center justify-between mb-0.5">
-        <h4 className="font-semibold text-notes-text text-[15px]">{entry.name}</h4>
+    <div className="mb-5">
+      {/* Exercise name — bold inline heading like a note subheading */}
+      <div className="flex items-baseline justify-between group">
+        <h3 className="text-[17px] font-semibold text-notes-text">{entry.name}</h3>
         <button
           onClick={() => deleteExerciseEntry(entry.id!)}
-          className="text-notes-danger text-xs px-2 py-0.5 opacity-60 active:opacity-100"
+          className="text-[11px] text-notes-danger opacity-0 group-hover:opacity-60 active:opacity-100 transition-opacity"
         >
-          Remove
+          remove
         </button>
       </div>
 
@@ -42,17 +43,19 @@ export function ExerciseEntryCard({ entry }: { entry: ExerciseEntry }) {
         <OverloadBadge recommendation={recommendation} onApply={handleApplyRecommendation} />
       )}
 
-      <div className="mt-1.5 border-t border-notes-divider/50 pt-1">
+      {/* Sets — inline like bullet points in a note */}
+      <div className="mt-1.5 ml-0.5">
         {sets.map((s) => (
-          <SetRow key={s.id} set={s} />
+          <InlineSetRow key={s.id} set={s} />
         ))}
       </div>
 
+      {/* Add set — subtle inline link */}
       <button
         onClick={handleAddSet}
-        className="mt-1 text-sm text-notes-accent font-medium w-full text-center py-2 rounded-lg active:bg-notes-accent-dim transition-colors"
+        className="text-[13px] text-notes-accent mt-1 ml-0.5 active:opacity-60 transition-opacity"
       >
-        + Add Set
+        + set
       </button>
     </div>
   );

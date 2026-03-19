@@ -21,14 +21,15 @@ export function SetRow({ set }: { set: SetEntry }) {
 
   if (editing) {
     return (
-      <div className="flex items-center gap-2 py-1.5">
-        <span className="text-xs text-notes-muted w-6 text-right">{set.setNumber}</span>
+      <div className="flex items-center gap-2 py-2">
+        <span className="text-xs text-notes-muted w-6 text-right font-mono">{set.setNumber}</span>
         <input
           type="number"
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
-          className="w-16 px-2 py-1 text-sm border border-notes-divider rounded-lg text-center bg-notes-bg"
+          className="w-16 px-2 py-1.5 text-sm rounded-lg text-center bg-notes-fill text-notes-text border border-notes-divider"
           inputMode="decimal"
+          autoFocus
         />
         <span className="text-xs text-notes-muted">{set.unit}</span>
         <span className="text-xs text-notes-muted">×</span>
@@ -36,40 +37,40 @@ export function SetRow({ set }: { set: SetEntry }) {
           type="number"
           value={reps}
           onChange={(e) => setReps(e.target.value)}
-          className="w-14 px-2 py-1 text-sm border border-notes-divider rounded-lg text-center bg-notes-bg"
+          className="w-14 px-2 py-1.5 text-sm rounded-lg text-center bg-notes-fill text-notes-text border border-notes-divider"
           inputMode="numeric"
         />
-        <button onClick={handleSave} className="text-xs text-notes-accent font-medium">Save</button>
+        <button onClick={handleSave} className="text-xs text-notes-accent font-semibold ml-auto">Done</button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 py-1.5 group">
-      <span className="text-xs text-notes-muted w-6 text-right">{set.setNumber}</span>
+    <div className="flex items-center gap-2 py-2 group">
+      <span className="text-xs text-notes-muted w-6 text-right font-mono">{set.setNumber}</span>
       <button
         onClick={() => setEditing(true)}
-        className="text-sm text-gray-800 hover:text-notes-accent"
+        className="text-sm text-notes-text-secondary active:text-notes-accent transition-colors"
       >
-        {set.weight}{set.unit} × {set.reps}
+        {set.weight}<span className="text-notes-muted text-xs">{set.unit}</span> × {set.reps}
       </button>
       <button
         onClick={handleToggleComplete}
-        className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+        className={`ml-auto w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
           set.completed
             ? 'bg-notes-success border-notes-success'
-            : 'border-notes-divider'
+            : 'border-notes-muted/40'
         }`}
       >
         {set.completed && (
-          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
       </button>
       <button
         onClick={() => deleteSet(set.id!)}
-        className="opacity-0 group-hover:opacity-100 text-notes-danger text-xs transition-opacity"
+        className="opacity-0 group-hover:opacity-100 text-notes-danger text-xs transition-opacity pl-1"
       >
         ✕
       </button>

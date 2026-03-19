@@ -10,7 +10,7 @@ const tabs = [
 export function BottomTabBar() {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-notes-card/90 backdrop-blur-lg border-t border-notes-divider"
+      className="fixed bottom-0 left-0 right-0 bg-[#1C1C1E]/80 backdrop-blur-xl border-t border-notes-divider"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex justify-around items-center h-12">
@@ -40,7 +40,7 @@ export function BottomTabBar() {
 
 function TabIconWorkouts({ active }: { active: boolean }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#FFD60A' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 6h16M4 10h16M4 14h10M4 18h8" />
     </svg>
   );
@@ -48,7 +48,7 @@ function TabIconWorkouts({ active }: { active: boolean }) {
 
 function TabIconExercises({ active }: { active: boolean }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#FFD60A' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 4v16M18 4v16M6 12h12M3 8v8M21 8v8" />
     </svg>
   );
@@ -56,7 +56,7 @@ function TabIconExercises({ active }: { active: boolean }) {
 
 function TabIconStats({ active }: { active: boolean }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#FFD60A' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 20V10M12 20V4M6 20v-6" />
     </svg>
   );
@@ -64,7 +64,7 @@ function TabIconStats({ active }: { active: boolean }) {
 
 function TabIconSettings({ active }: { active: boolean }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#FFD60A' : '#8E8E93'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
     </svg>

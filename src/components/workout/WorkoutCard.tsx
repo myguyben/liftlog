@@ -22,22 +22,22 @@ export function WorkoutCard({ workout }: { workout: Workout }) {
   return (
     <button
       onClick={() => navigate(`/workout/${workout.id}`)}
-      className="w-full text-left bg-notes-card rounded-[var(--radius-card)] px-4 py-3 active:scale-[0.98] transition-transform"
+      className="w-full text-left bg-notes-card rounded-[var(--radius-card)] px-4 py-3.5 active:scale-[0.98] active:bg-notes-card-elevated transition-all duration-150"
     >
       <div className="flex justify-between items-start">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-gray-900 truncate">{title}</h3>
-          <p className="text-sm text-notes-muted mt-0.5">
+          <h3 className="font-semibold text-notes-text truncate text-[15px]">{title}</h3>
+          <p className="text-[13px] text-notes-muted mt-1">
             {formatDate(workout.date)}
             {summary && (
-              <span>
+              <span className="text-notes-muted">
                 {' · '}
                 {pluralize(summary.exercises, 'exercise')}, {pluralize(summary.sets, 'set')}
               </span>
             )}
           </p>
         </div>
-        <svg className="w-5 h-5 text-notes-muted flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 text-notes-muted/50 flex-shrink-0 mt-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
         </svg>
       </div>

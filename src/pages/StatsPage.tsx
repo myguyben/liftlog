@@ -36,7 +36,7 @@ export function StatsPage() {
     <div>
       <PageHeader title="Stats" />
 
-      <div className="px-4 grid grid-cols-2 gap-3 mb-4">
+      <div className="px-4 grid grid-cols-2 gap-3 mb-4 pt-2">
         <div className="bg-notes-card rounded-[var(--radius-card)] p-4 text-center">
           <p className="text-3xl font-bold text-notes-accent">{stats.totalWorkouts}</p>
           <p className="text-xs text-notes-muted mt-1">Total Workouts</p>
@@ -48,28 +48,30 @@ export function StatsPage() {
       </div>
 
       <div className="px-4">
-        <h2 className="font-semibold text-gray-900 mb-2">Personal Records</h2>
+        <h2 className="font-semibold text-notes-text text-lg mb-2">Personal Records</h2>
         {stats.prs.length === 0 && (
-          <p className="text-sm text-notes-muted py-4 text-center">Log some exercises to see your PRs</p>
+          <p className="text-sm text-notes-muted py-8 text-center">Log some exercises to see your PRs</p>
         )}
-        {stats.prs.map((s) => (
-          <div key={s.id} className="bg-notes-card rounded-[var(--radius-card)] px-4 py-3 mb-2">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-medium text-sm text-gray-900 capitalize">{s.exerciseName}</p>
-                <p className="text-xs text-notes-muted">{s.useCount} sessions</p>
-              </div>
-              {s.personalBest && (
-                <div className="text-right">
-                  <p className="font-bold text-sm text-notes-accent">
-                    {formatWeight(s.personalBest.weight, s.personalBest.unit)}
-                  </p>
-                  <p className="text-[10px] text-notes-muted">{s.personalBest.reps} reps · {s.personalBest.date}</p>
+        <div className="flex flex-col gap-0.5">
+          {stats.prs.map((s) => (
+            <div key={s.id} className="bg-notes-card rounded-[var(--radius-card)] px-4 py-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-[15px] text-notes-text capitalize">{s.exerciseName}</p>
+                  <p className="text-xs text-notes-muted mt-0.5">{s.useCount} sessions</p>
                 </div>
-              )}
+                {s.personalBest && (
+                  <div className="text-right">
+                    <p className="font-bold text-[15px] text-notes-accent">
+                      {formatWeight(s.personalBest.weight, s.personalBest.unit)}
+                    </p>
+                    <p className="text-[11px] text-notes-muted">{s.personalBest.reps} reps · {s.personalBest.date}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

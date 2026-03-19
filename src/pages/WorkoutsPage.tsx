@@ -19,7 +19,7 @@ export function WorkoutsPage() {
 
       <button
         onClick={handleNew}
-        className="fixed right-5 bottom-20 w-14 h-14 bg-notes-accent text-white rounded-full shadow-lg flex items-center justify-center text-2xl active:scale-90 transition-transform z-40"
+        className="fixed right-5 bottom-20 w-14 h-14 bg-notes-accent text-black rounded-full shadow-lg shadow-notes-accent/20 flex items-center justify-center text-2xl font-light active:scale-90 transition-transform z-40"
         aria-label="New workout"
       >
         +

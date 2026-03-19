@@ -1,17 +1,17 @@
 import { useRef, useCallback } from 'react';
 import { useNaturalLanguage } from '../../hooks/useNaturalLanguage';
 import { useAutocomplete } from '../../hooks/useAutocomplete';
-import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { addExerciseEntry, addSet } from '../../hooks/useWorkouts';
 import { db } from '../../db/database';
 import type { ExerciseTemplate } from '../../db/models';
 
-interface NaturalLanguageInputProps {
+interface InlineInputProps {
   workoutId: number;
   defaultUnit: 'lbs' | 'kg';
+  onAdded?: () => void;
 }
 
-export function NaturalLanguageInput({ workoutId, defaultUnit }: NaturalLanguageInputProps) {
+export function InlineInput({ workoutId, defaultUnit, onAdded }: InlineInputProps) {
   const { input, parsed, updateInput, clear } = useNaturalLanguage();
   const { suggestions, search } = useAutocomplete();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,9 +30,12 @@ export function NaturalLanguageInput({ workoutId, defaultUnit }: NaturalLanguage
   const handleSelectTemplate = useCallback(
     (template: ExerciseTemplate) => {
       const currentParsed = parsed;
-      updateInput(template.name + (currentParsed?.weight ? ` ${currentParsed.weight}${currentParsed.unit || defaultUnit}` : '') +
-        (currentParsed?.reps ? ` ${currentParsed.reps} reps` : '') +
-        (currentParsed?.sets ? ` ${currentParsed.sets} sets` : ''));
+      updateInput(
+        template.name +
+          (currentParsed?.weight ? ` ${currentParsed.weight}${currentParsed.unit || defaultUnit}` : '') +
+          (currentParsed?.reps ? ` ${currentParsed.reps} reps` : '') +
+          (currentParsed?.sets ? ` ${currentParsed.sets} sets` : ''),
+      );
       search('');
       inputRef.current?.focus();
     },
@@ -56,39 +59,56 @@ export function NaturalLanguageInput({ workoutId, defaultUnit }: NaturalLanguage
 
     clear();
     search('');
+    onAdded?.();
+    inputRef.current?.focus();
   }
 
-  return (
-    <div className="relative px-4 pb-4">
-      <AutocompleteDropdown suggestions={suggestions} onSelect={handleSelectTemplate} />
+  const showSuggestions = suggestions.length > 0 && input.trim().length > 0;
 
-      {parsed && parsed.name && (
-        <div className="text-xs text-notes-muted px-1 mb-1.5 flex gap-1.5">
-          <span className="text-notes-accent">{parsed.name}</span>
-          {parsed.weight != null && <span>{parsed.weight}{parsed.unit ?? defaultUnit}</span>}
-          {parsed.reps != null && <span>{parsed.reps} reps</span>}
-          {parsed.sets != null && <span>{parsed.sets} sets</span>}
+  return (
+    <div className="relative">
+      {/* Autocomplete — floating above the input line */}
+      {showSuggestions && (
+        <div className="mb-2 bg-notes-card rounded-[var(--radius-card)] border border-notes-divider/50 overflow-hidden">
+          {suggestions.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => handleSelectTemplate(t)}
+              className="w-full text-left px-4 py-2.5 active:bg-notes-fill transition-colors border-b border-notes-divider/30 last:border-b-0"
+            >
+              <span className="text-[14px] text-notes-text">{t.name}</span>
+              <span className="text-[11px] text-notes-muted ml-2">{t.equipment}</span>
+            </button>
+          ))}
         </div>
       )}
 
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => handleChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder="e.g. bench press 135lbs 10 reps 3 sets"
-          className="flex-1 px-4 py-2.5 bg-notes-fill border border-notes-divider rounded-xl text-sm text-notes-text placeholder:text-notes-muted/60 focus:border-notes-accent/50 focus:ring-1 focus:ring-notes-accent/20 transition-colors"
-        />
-        <button
-          onClick={handleSubmit}
-          disabled={!parsed?.name}
-          className="px-5 py-2.5 bg-notes-accent text-black rounded-xl text-sm font-semibold disabled:opacity-30 active:scale-95 transition-all"
-        >
-          Add
-        </button>
-      </div>
+      {/* Parse preview — subtle hint below suggestions */}
+      {parsed && parsed.name && !showSuggestions && (
+        <div className="text-[12px] text-notes-muted/60 mb-1 flex items-center gap-1.5">
+          <span className="text-notes-accent/70">{parsed.name}</span>
+          {parsed.weight != null && <span>· {parsed.weight}{parsed.unit ?? defaultUnit}</span>}
+          {parsed.reps != null && <span>· {parsed.reps}r</span>}
+          {parsed.sets != null && <span>· {parsed.sets}s</span>}
+          <span className="text-notes-muted/40 ml-1">↵ to add</span>
+        </div>
+      )}
+
+      {/* The input line — looks like the next line of the note */}
+      <input
+        ref={inputRef}
+        type="text"
+        value={input}
+        onChange={(e) => handleChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
+        placeholder="Add exercise..."
+        className="w-full text-[15px] text-notes-text bg-transparent focus:outline-none placeholder:text-notes-muted/25 leading-relaxed py-1 caret-notes-accent"
+      />
     </div>
   );
 }
