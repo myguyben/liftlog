@@ -26,3 +26,10 @@ Package.resolved
 
 # CocoaPods (if ever used)
 Pods/
+
+# Legacy web app / Capacitor
+node_modules/
+dist/
+.vite/
+ios/App/
+ios/capacitor-cordova-ios-plugins/
