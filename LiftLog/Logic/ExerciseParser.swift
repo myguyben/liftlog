@@ -23,16 +23,19 @@ struct ExerciseParser {
     // MARK: - Regex patterns
 
     /// Compact format: 3x10x135, 3x10x135lbs, 3x10x60kg
-    private static let compactPattern = #"(\d+)\s*[xX]\s*(\d+)\s*[xX]\s*([\d.]+)\s*(lbs?|kg|#)?"#
+    private static let compactPattern = #"(\d+)\s*[xX]\s*(\d+)\s*[xX]\s*([\d.]+)\s*(lbs?|pounds?|kg|kgs?|kilograms?|#)?"#
 
-    /// Weight with unit: 135lbs, 60kg, 225#, 135 lbs
-    private static let weightPattern = #"([\d.]+)\s*(lbs?|kg|#)"#
+    /// Weight with unit: 135lbs, 60kg, 225#, 135 lbs, 100 pounds
+    private static let weightPattern = #"([\d.]+)\s*(lbs?|pounds?|kg|kgs?|kilograms?|#)"#
 
     /// Reps: 10 reps, x12, x 8
     private static let repsPattern = #"(?:(\d+)\s*reps|[xX]\s*(\d+))"#
 
     /// Sets: 3 sets, 5sets
     private static let setsPattern = #"(\d+)\s*sets?"#
+
+    /// Two bare numbers: "100 10" or "100, 10" -> weight reps
+    private static let twoNumbersPattern = #"([\d.]+)\s*[,\s]\s*(\d+)\s*$"#
 
     /// Standalone number (fallback for reps)
     private static let standaloneNumberPattern = #"(?<!\d)(\d{1,3})(?!\d)"#
@@ -48,6 +51,24 @@ struct ExerciseParser {
         var result = ParsedExercise()
         var remaining = trimmed
         var confidence = 0.0
+
+        // 0. Check for "Name 100 10" pattern (two trailing numbers = weight reps)
+        if result.weight == nil, let match = firstMatch(for: #"^(.+?)\s+([\d.]+)\s+(\d+)\s*$"#, in: remaining) {
+            let nameStr = substring(of: remaining, range: match.range(at: 1))
+            let weightStr = substring(of: remaining, range: match.range(at: 2))
+            let repsStr = substring(of: remaining, range: match.range(at: 3))
+
+            if let name = nameStr, let w = Double(weightStr ?? ""), let r = Int(repsStr ?? "") {
+                // Only match if the name part has letters (not just numbers)
+                if name.rangeOfCharacter(from: .letters) != nil {
+                    result.name = cleanName(name)
+                    result.weight = w
+                    result.reps = r
+                    result.confidence = 0.7
+                    return result
+                }
+            }
+        }
 
         // 1. Try compact format first: 3x10x135
         if let match = firstMatch(for: compactPattern, in: remaining) {
@@ -118,10 +139,10 @@ struct ExerciseParser {
 
     private static func normalizeUnit(_ raw: String) -> String {
         let lower = raw.lowercased()
-        if lower == "kg" {
+        if lower == "kg" || lower == "kgs" || lower.hasPrefix("kilogram") {
             return "kg"
         }
-        return "lbs"  // lbs, lb, #
+        return "lbs"  // lbs, lb, pounds, #
     }
 
     private static func firstMatch(for pattern: String, in text: String) -> NSTextCheckingResult? {

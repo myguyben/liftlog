@@ -20,6 +20,7 @@ struct StatsView: View {
             }
             .background(Color.background)
             .navigationTitle("Stats")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 

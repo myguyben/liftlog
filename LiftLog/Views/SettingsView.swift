@@ -85,6 +85,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.background)
             .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
             .alert("Export Data", isPresented: $showExportAlert) {
                 Button("OK", role: .cancel) {}
             } message: {

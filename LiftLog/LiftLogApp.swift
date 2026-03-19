@@ -24,7 +24,8 @@ struct LiftLogApp: App {
                 ExerciseEntry.self,
                 SetEntry.self,
                 ExerciseTemplate.self,
-                UserExerciseStats.self
+                UserExerciseStats.self,
+                ExerciseProgressProfile.self
             )
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")

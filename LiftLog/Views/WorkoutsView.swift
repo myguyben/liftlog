@@ -23,6 +23,7 @@ struct WorkoutsView: View {
                 }
             }
             .navigationTitle("Workouts")
+            .navigationBarTitleDisplayMode(.inline)
             .overlay(alignment: .bottomTrailing) {
                 addButton
             }

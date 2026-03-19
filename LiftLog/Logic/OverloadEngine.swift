@@ -8,12 +8,55 @@ enum ExerciseCategory: String, CaseIterable, Codable {
     case isolation
     case bodyweight
 
-    var weightIncrement: Double {
+    /// Standard weight increment for this category in the given unit system
+    func weightIncrement(for unit: String) -> Double {
+        if unit == "kg" {
+            switch self {
+            case .upperCompound: return 2.5
+            case .lowerCompound: return 5.0
+            case .isolation: return 1.25
+            case .bodyweight: return 0.0
+            }
+        }
         switch self {
         case .upperCompound: return 5.0
         case .lowerCompound: return 10.0
         case .isolation: return 2.5
         case .bodyweight: return 0.0
+        }
+    }
+
+    /// Microload increment for plateau-breaking in the given unit system
+    func microloadIncrement(for unit: String) -> Double {
+        if unit == "kg" {
+            switch self {
+            case .upperCompound: return 1.25
+            case .lowerCompound: return 2.5
+            case .isolation: return 0.5
+            case .bodyweight: return 0.0
+            }
+        }
+        switch self {
+        case .upperCompound: return 2.5
+        case .lowerCompound: return 5.0
+        case .isolation: return 1.25
+        case .bodyweight: return 0.0
+        }
+    }
+
+    var defaultMinReps: Int {
+        switch self {
+        case .upperCompound, .lowerCompound: return 5
+        case .isolation: return 8
+        case .bodyweight: return 5
+        }
+    }
+
+    var defaultMaxReps: Int {
+        switch self {
+        case .upperCompound, .lowerCompound: return 8
+        case .isolation: return 12
+        case .bodyweight: return 20
         }
     }
 
@@ -25,6 +68,31 @@ enum ExerciseCategory: String, CaseIterable, Codable {
         case .bodyweight: return "Bodyweight"
         }
     }
+
+    /// Unified classification: template-based first, string fallback second
+    static func classify(name: String, template: ExerciseTemplate?) -> ExerciseCategory {
+        if let tmpl = template {
+            let equipment = tmpl.equipment.lowercased()
+            if equipment == "body only" || equipment == "bodyweight" {
+                return .bodyweight
+            }
+            let mechanic = tmpl.mechanic.lowercased()
+            if mechanic == "compound" {
+                let primary = tmpl.primaryMuscles.lowercased()
+                let lowerMuscles = ["quadriceps", "hamstrings", "glutes", "calves", "lower back"]
+                let isLower = lowerMuscles.contains(where: { primary.contains($0) })
+                return isLower ? .lowerCompound : .upperCompound
+            }
+            return .isolation
+        }
+
+        // String-based fallback
+        let l = name.lowercased()
+        if ["bench press", "overhead press", "military press", "incline press", "dumbbell press", "shoulder press", "push press"].contains(where: { l.contains($0) }) { return .upperCompound }
+        if ["squat", "deadlift", "leg press", "hip thrust", "romanian deadlift", "front squat", "sumo deadlift"].contains(where: { l.contains($0) }) { return .lowerCompound }
+        if ["pull-up", "pullup", "push-up", "pushup", "dip", "chin-up", "chinup", "plank"].contains(where: { l.contains($0) }) { return .bodyweight }
+        return .isolation
+    }
 }
 
 // MARK: - Overload Type
@@ -34,23 +102,16 @@ enum OverloadType: String {
     case increaseReps
     case maintain
     case deload
+    case microload
+    case addSet
 }
 
-// MARK: - Session Snapshot
+// MARK: - Recommendation Confidence
 
-/// Represents one session's performance for a single exercise.
-struct SessionSnapshot {
-    var weight: Double
-    var unit: String
-    var targetReps: Int
-    var completedReps: Int
-    var sets: Int
-    var date: Date
-
-    /// Whether the lifter hit all target reps across all sets.
-    var allRepsCompleted: Bool {
-        completedReps >= targetReps * sets
-    }
+enum RecommendationConfidence: String {
+    case high    // 5+ sessions of history
+    case medium  // 2-4 sessions
+    case low     // 0-1 sessions
 }
 
 // MARK: - Overload Recommendation
@@ -61,110 +122,268 @@ struct OverloadRecommendation {
     var unit: String
     var reps: Int
     var message: String
+    var sets: Int?
+    var detail: String?
+    var confidence: RecommendationConfidence
+
+    init(type: OverloadType, weight: Double, unit: String, reps: Int, message: String,
+         sets: Int? = nil, detail: String? = nil, confidence: RecommendationConfidence = .medium) {
+        self.type = type
+        self.weight = weight
+        self.unit = unit
+        self.reps = reps
+        self.message = message
+        self.sets = sets
+        self.detail = detail
+        self.confidence = confidence
+    }
 }
 
 // MARK: - Overload Engine
 
 struct OverloadEngine {
 
-    /// Compute the next-session recommendation based on recent history.
-    ///
-    /// - Parameters:
-    ///   - sessions: Recent sessions for this exercise, ordered newest-first. Typically 1-5 sessions.
-    ///   - category: The exercise's category for determining weight increments.
-    ///   - unit: Preferred weight unit ("lbs" or "kg").
-    /// - Returns: A recommendation, or `nil` if there is no history.
-    static func computeOverload(
-        sessions: [SessionSnapshot],
-        category: ExerciseCategory,
-        unit: String = "lbs"
+    /// Adaptive recommendation engine
+    static func recommend(
+        sessions: [DetailedSessionSnapshot],
+        profile: ExerciseProgressProfile?,
+        category: ExerciseCategory
     ) -> OverloadRecommendation? {
 
-        guard let latest = sessions.first else {
-            return nil  // No history
-        }
+        guard let latest = sessions.first else { return nil }
 
-        // Bodyweight exercises: always recommend +1 rep
-        if category == .bodyweight {
+        let unit = latest.unit
+        let confidence = confidenceLevel(sessionCount: sessions.count)
+        let minReps = profile?.typicalMinReps ?? category.defaultMinReps
+        let maxReps = profile?.typicalMaxReps ?? category.defaultMaxReps
+
+        let fatigue = PerformanceAnalyzer.analyzeFatigue(sessions: sessions, profile: profile)
+        let plateau = PerformanceAnalyzer.detectPlateau(sessions: sessions, profile: profile)
+        let repRange = PerformanceAnalyzer.detectRepRangePosition(sessions: sessions, profile: profile)
+        let volumeTrend = PerformanceAnalyzer.analyzeVolumeTrend(sessions: sessions)
+
+        let currentWeight = latest.topWeight
+        let workingReps = latest.workingSetReps
+
+        // ── Priority 1: Deload ──
+        // Fatigue > 60, OR stagnated at same weight for 3 consecutive sessions
+        let stagnated3x = hasStagnatedAtWeight(sessions: sessions, maxReps: maxReps, times: 3)
+        if fatigue.score > 60 || stagnated3x {
+            let increment = category.weightIncrement(for: unit)
+            let deloadWeight = category == .bodyweight ? 0.0 : roundToNearest(currentWeight * 0.85, increment: increment)
+            let reason = fatigue.score > 60
+                ? "Fatigue signals detected"
+                : "Struggled at this weight for 3 sessions"
+            if category == .bodyweight {
+                let deloadReps = max(minReps, (workingReps.max() ?? minReps) - 3)
+                return OverloadRecommendation(
+                    type: .deload,
+                    weight: 0,
+                    unit: unit,
+                    reps: deloadReps,
+                    message: "Deload to \(deloadReps) reps",
+                    detail: "\(reason). Drop reps and rebuild.",
+                    confidence: confidence
+                )
+            }
             return OverloadRecommendation(
-                type: .increaseReps,
-                weight: latest.weight,
+                type: .deload,
+                weight: deloadWeight,
                 unit: unit,
-                reps: latest.completedReps + 1,
-                message: "Add 1 rep to progress this bodyweight exercise."
+                reps: minReps,
+                message: "Deload to \(formatWeight(deloadWeight)) \(unit)",
+                detail: "\(reason). Drop to 85% and rebuild from \(minReps) reps.",
+                confidence: confidence
             )
         }
 
-        // Check for 3 consecutive declining sessions
-        if sessions.count >= 3 {
-            let recentThree = Array(sessions.prefix(3))
-            let declining = isConsecutivelyDeclining(recentThree)
-            if declining {
-                let deloadWeight = roundToNearest(latest.weight * 0.9, increment: category.weightIncrement)
+        // ── Priority 2: Plateau breaker ──
+        if plateau.isPlateaued {
+            switch plateau.suggestedStrategy {
+            case .microload:
+                if category == .bodyweight {
+                    // Bodyweight can't microload — use rep expansion instead
+                    let targetReps = min((workingReps.max() ?? minReps) + 1, maxReps + 2) // +2 overshoot to break through ceiling before next progression strategy
+                    return OverloadRecommendation(
+                        type: .increaseReps,
+                        weight: 0,
+                        unit: unit,
+                        reps: targetReps,
+                        message: "Push to \(targetReps) reps",
+                        detail: "Stuck for \(plateau.sessionsStuck) sessions. Expand rep range.",
+                        confidence: confidence
+                    )
+                }
+                let microInc = category.microloadIncrement(for: unit)
+                let microWeight = roundToNearest(currentWeight + microInc, increment: microInc)
+                return OverloadRecommendation(
+                    type: .microload,
+                    weight: microWeight,
+                    unit: unit,
+                    reps: workingReps.min() ?? minReps,
+                    message: "Microload to \(formatWeight(microWeight)) \(unit)",
+                    detail: "Stuck for \(plateau.sessionsStuck) sessions. Try a smaller jump.",
+                    confidence: confidence
+                )
+            case .repExpansion:
+                let targetReps = min((workingReps.max() ?? minReps) + 1, maxReps + 2) // +2 overshoot to break through ceiling before next progression strategy
+                return OverloadRecommendation(
+                    type: .increaseReps,
+                    weight: currentWeight,
+                    unit: unit,
+                    reps: targetReps,
+                    message: "Push to \(targetReps) reps at \(formatWeight(currentWeight)) \(unit)",
+                    detail: "Stuck for \(plateau.sessionsStuck) sessions. Expand rep range before next weight jump.",
+                    confidence: confidence
+                )
+            case .deloadAndRebuild:
+                let increment = category.weightIncrement(for: unit)
+                let deloadWeight = category == .bodyweight ? 0.0 : roundToNearest(currentWeight * 0.85, increment: increment)
+                if category == .bodyweight {
+                    let deloadReps = max(minReps, (workingReps.max() ?? minReps) - 3)
+                    return OverloadRecommendation(
+                        type: .deload,
+                        weight: 0,
+                        unit: unit,
+                        reps: deloadReps,
+                        message: "Deload to \(deloadReps) reps",
+                        detail: "Plateaued for \(plateau.sessionsStuck) sessions. Drop reps and rebuild.",
+                        confidence: confidence
+                    )
+                }
                 return OverloadRecommendation(
                     type: .deload,
                     weight: deloadWeight,
                     unit: unit,
-                    reps: latest.targetReps,
-                    message: "Performance declined over 3 sessions. Deload to \(formatWeight(deloadWeight)) \(unit) and rebuild."
+                    reps: minReps,
+                    message: "Deload to \(formatWeight(deloadWeight)) \(unit)",
+                    detail: "Plateaued for \(plateau.sessionsStuck) sessions. Deload and rebuild stronger.",
+                    confidence: confidence
+                )
+            case .volumeAdjustment, .none:
+                let newSets = (latest.completedSetCount) + 1
+                return OverloadRecommendation(
+                    type: .addSet,
+                    weight: currentWeight,
+                    unit: unit,
+                    reps: workingReps.min() ?? minReps,
+                    message: "Add a set at \(formatWeight(currentWeight)) \(unit)",
+                    sets: newSets,
+                    detail: "More volume may break through the plateau.",
+                    confidence: confidence
                 )
             }
         }
 
-        // All reps completed -> increase weight
-        if latest.allRepsCompleted {
-            let increment = convertIncrement(category.weightIncrement, toUnit: unit)
-            let newWeight = latest.weight + increment
+        // ── Priority 3: Double progression — increase weight ──
+        // (Bodyweight skips this — no weight to increase)
+        if repRange.readyToGraduate && category != .bodyweight {
+            let increment = category.weightIncrement(for: unit)
+            let newWeight = roundToNearest(currentWeight + increment, increment: increment)
             return OverloadRecommendation(
                 type: .increaseWeight,
                 weight: newWeight,
                 unit: unit,
-                reps: latest.targetReps,
-                message: "All reps completed! Increase weight to \(formatWeight(newWeight)) \(unit)."
+                reps: minReps,
+                message: "\(formatWeight(newWeight)) \(unit) × \(minReps)",
+                detail: "Hit \(maxReps) reps on all sets! Time to go up.",
+                confidence: confidence
             )
         }
 
-        // Partial reps -> maintain weight, suggest +1 rep on weakest set
-        let deficit = (latest.targetReps * latest.sets) - latest.completedReps
+        // ── Priority 4: Double progression — increase reps ──
+        let currentMinReps = workingReps.min() ?? minReps
+        if !workingReps.isEmpty && currentMinReps >= minReps && currentMinReps < maxReps {
+            let targetReps = currentMinReps + 1
+            let repsToGo = maxReps - currentMinReps
+            // Show which sets still need work
+            let weakSets = workingReps.enumerated().filter { $0.element < maxReps }
+            let detailMsg: String
+            if weakSets.count < workingReps.count || workingReps.count == 1 {
+                detailMsg = "\(repsToGo) more rep\(repsToGo == 1 ? "" : "s") to go up in weight."
+            } else {
+                let setNumbers = weakSets.map { "set \($0.offset + 1)" }
+                let needsList = setNumbers.prefix(3).joined(separator: ", ")
+                detailMsg = "Get all sets to \(maxReps) reps — \(needsList) need\(weakSets.count == 1 ? "s" : "") \(repsToGo) more."
+            }
+            return OverloadRecommendation(
+                type: .increaseReps,
+                weight: currentWeight,
+                unit: unit,
+                reps: targetReps,
+                message: "\(formatWeight(currentWeight)) \(unit) × \(targetReps)",
+                detail: detailMsg,
+                confidence: confidence
+            )
+        }
+
+        // ── Priority 5: Maintain ──
+        let weakSets = workingReps.enumerated().filter { $0.element < minReps }
+        let weakDetail: String
+        if !weakSets.isEmpty {
+            let setNumbers = weakSets.map { "set \($0.offset + 1)" }.joined(separator: ", ")
+            weakDetail = "Focus on \(setNumbers) — fell short of \(minReps) reps."
+        } else {
+            weakDetail = "Keep pushing at this weight."
+        }
+
+        // Check if volume has been flat — suggest adding a set
+        var maintainDetail = weakDetail
+        if sessions.count >= 6 {
+            let recentVolumes = Array(sessions.prefix(6)).map(\.totalVolume)
+            let mean = recentVolumes.reduce(0, +) / Double(recentVolumes.count)
+            if mean > 0 {
+                let variance = recentVolumes.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Double(recentVolumes.count)
+                let cv = sqrt(variance) / mean
+                if cv < 0.05 {
+                    maintainDetail += " Volume has been flat — consider adding a set."
+                }
+            }
+        }
+
         return OverloadRecommendation(
             type: .maintain,
-            weight: latest.weight,
+            weight: currentWeight,
             unit: unit,
-            reps: latest.targetReps,
-            message: "Missed \(deficit) rep\(deficit == 1 ? "" : "s"). Keep \(formatWeight(latest.weight)) \(unit) and aim for +1 rep on your weakest set."
+            reps: max(currentMinReps, minReps),
+            message: "Keep \(formatWeight(currentWeight)) \(unit) × \(max(currentMinReps, minReps))",
+            detail: maintainDetail,
+            confidence: confidence
         )
     }
 
     // MARK: - Helpers
 
-    /// Check whether the 3 most recent sessions show declining total reps.
-    private static func isConsecutivelyDeclining(_ sessions: [SessionSnapshot]) -> Bool {
-        guard sessions.count >= 3 else { return false }
-        let totals = sessions.map { $0.completedReps }
-        // sessions are newest-first, so totals[0] is most recent
-        // declining means each older session was better: totals[2] > totals[1] > totals[0]
-        return totals[0] < totals[1] && totals[1] < totals[2]
+    private static func confidenceLevel(sessionCount: Int) -> RecommendationConfidence {
+        if sessionCount >= 5 { return .high }
+        if sessionCount >= 2 { return .medium }
+        return .low
     }
 
-    /// Round a weight to the nearest increment.
-    private static func roundToNearest(_ value: Double, increment: Double) -> Double {
+    /// Check if the user's best working set reps haven't reached maxReps across N consecutive sessions at the same weight.
+    /// Unlike the old hasFailedSameWeight, this compares against the target rep range top — not intra-session variation.
+    private static func hasStagnatedAtWeight(sessions: [DetailedSessionSnapshot], maxReps: Int, times: Int) -> Bool {
+        guard sessions.count >= times else { return false }
+        let weight = sessions.first!.topWeight
+        let tolerance = max(0.5, weight * 0.03)
+        var stagnantCount = 0
+        for session in sessions.prefix(times) {
+            guard abs(session.topWeight - weight) < tolerance else { break }
+            let bestReps = session.workingSetReps.max() ?? 0
+            if bestReps < maxReps {
+                stagnantCount += 1
+            }
+        }
+        return stagnantCount >= times
+    }
+
+    static func roundToNearest(_ value: Double, increment: Double) -> Double {
         guard increment > 0 else { return value }
         return (value / increment).rounded() * increment
     }
 
-    /// Convert a lbs-based increment to the target unit.
-    private static func convertIncrement(_ lbsIncrement: Double, toUnit unit: String) -> Double {
-        if unit == "kg" {
-            // Approximate conversion: round to nearest 0.5 kg
-            let kgRaw = lbsIncrement * 0.453592
-            return (kgRaw * 2).rounded() / 2
-        }
-        return lbsIncrement
-    }
-
-    /// Format a weight for display, dropping the decimal if it's a whole number.
-    private static func formatWeight(_ weight: Double) -> String {
-        if weight == weight.rounded() && weight.truncatingRemainder(dividingBy: 1) == 0 {
+    static func formatWeight(_ weight: Double) -> String {
+        if weight.truncatingRemainder(dividingBy: 1) == 0 {
             return String(format: "%.0f", weight)
         }
         return String(format: "%.1f", weight)

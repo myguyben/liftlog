@@ -27,6 +27,7 @@ struct ExerciseLibraryView: View {
                 }
             }
             .navigationTitle("Exercises")
+            .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Search exercises...")
         }
     }
