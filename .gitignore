@@ -1,41 +1,28 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Xcode - generated project (regenerate with: xcodegen generate)
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.swp
+DerivedData/
+build/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
 
-# dependencies
-node_modules/
+# XcodeGen generates Info.plist from project.yml
+LiftLog/Info.plist
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
 
 # macOS
 .DS_Store
-*.pem
+*.plist.backup
 
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
+# CocoaPods (if ever used)
+Pods/
