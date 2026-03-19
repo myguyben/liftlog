@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.liftlog.app',
+  appId: 'com.benpalleson.liftlog',
   appName: 'LiftLog',
   webDir: 'dist',
   server: {
