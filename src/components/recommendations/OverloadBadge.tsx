@@ -13,10 +13,10 @@ export function OverloadBadge({ recommendation, onApply }: OverloadBadgeProps) {
   return (
     <button
       onClick={onApply}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold mt-1.5 active:scale-95 transition-transform ${
+      className={`inline-flex items-center gap-1.5 px-3 py-[6px] rounded-full text-[12px] font-semibold mt-2 active:scale-95 transition-all duration-150 ${
         isDeload
-          ? 'bg-notes-orange/15 text-notes-orange'
-          : 'bg-notes-accent-dim text-notes-accent'
+          ? 'bg-notes-orange/12 text-notes-orange border border-notes-orange/20'
+          : 'bg-notes-accent/10 text-notes-accent border border-notes-accent/20'
       }`}
     >
       <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">

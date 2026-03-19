@@ -40,51 +40,81 @@ export function SettingsPage() {
   if (!prefs) return null;
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <PageHeader title="Settings" />
 
-      <div className="px-4 flex flex-col gap-2 pt-2">
-        {/* Unit toggle */}
-        <div className="bg-notes-card rounded-[var(--radius-card)] px-4 py-3.5 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-[15px] text-notes-text">Default Unit</p>
-            <p className="text-xs text-notes-muted mt-0.5">Weight unit for new sets</p>
-          </div>
-          <button
-            onClick={handleUnitToggle}
-            className="px-4 py-1.5 bg-notes-fill rounded-full text-sm font-semibold text-notes-accent active:bg-notes-accent-dim transition-colors"
-          >
-            {prefs.defaultUnit.toUpperCase()}
-          </button>
+      {/* General section */}
+      <div className="px-4 pt-4">
+        <p className="text-[13px] font-semibold text-notes-muted/70 uppercase tracking-wider mb-2 px-1">General</p>
+        <div className="rounded-[var(--radius-card)] overflow-hidden">
+          <SettingsRow
+            label="Default Unit"
+            right={
+              <button
+                onClick={handleUnitToggle}
+                className="px-4 py-1 bg-notes-fill-secondary rounded-full text-[14px] font-semibold text-notes-accent active:bg-notes-accent-dim transition-colors min-w-[52px]"
+              >
+                {prefs.defaultUnit.toUpperCase()}
+              </button>
+            }
+          />
         </div>
+      </div>
 
-        {/* Export */}
-        <div className="bg-notes-card rounded-[var(--radius-card)] px-4 py-3.5">
-          <p className="font-medium text-[15px] text-notes-text mb-3">Data</p>
-          <div className="flex gap-2">
-            <button
-              onClick={handleExport}
-              className="flex-1 px-3 py-2.5 bg-notes-fill rounded-xl text-sm font-medium text-notes-accent active:bg-notes-accent-dim transition-colors"
-            >
-              Export Backup
-            </button>
-            <button
-              onClick={handleImport}
-              className="flex-1 px-3 py-2.5 bg-notes-fill rounded-xl text-sm font-medium text-notes-accent active:bg-notes-accent-dim transition-colors"
-            >
-              Import Backup
-            </button>
-          </div>
+      {/* Data section */}
+      <div className="px-4 pt-6">
+        <p className="text-[13px] font-semibold text-notes-muted/70 uppercase tracking-wider mb-2 px-1">Data</p>
+        <div className="rounded-[var(--radius-card)] overflow-hidden">
+          <SettingsButton label="Export Backup" sublabel="Download your data as JSON" onClick={handleExport} />
+          <SettingsButton label="Import Backup" sublabel="Restore from a backup file" onClick={handleImport} />
         </div>
+      </div>
 
-        {/* About */}
-        <div className="bg-notes-card rounded-[var(--radius-card)] px-4 py-3.5">
-          <p className="font-medium text-[15px] text-notes-text">LiftLog</p>
-          <p className="text-xs text-notes-muted mt-1 leading-relaxed">
-            Offline-first workout logger. Your data stays on your device.
-          </p>
+      {/* About section */}
+      <div className="px-4 pt-6">
+        <p className="text-[13px] font-semibold text-notes-muted/70 uppercase tracking-wider mb-2 px-1">About</p>
+        <div className="rounded-[var(--radius-card)] overflow-hidden">
+          <div className="bg-notes-card px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-notes-accent rounded-[10px] flex items-center justify-center flex-shrink-0">
+                <span className="text-black font-bold text-[18px]">L</span>
+              </div>
+              <div>
+                <p className="font-semibold text-[15px] text-notes-text">LiftLog</p>
+                <p className="text-[12px] text-notes-muted/60 mt-0.5">
+                  Offline-first. No account needed. Your data stays on device.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function SettingsRow({ label, right }: { label: string; right: React.ReactNode }) {
+  return (
+    <div className="bg-notes-card px-4 py-3 flex items-center justify-between border-b border-notes-divider/40 last:border-b-0">
+      <span className="text-[15px] text-notes-text">{label}</span>
+      {right}
+    </div>
+  );
+}
+
+function SettingsButton({ label, sublabel, onClick }: { label: string; sublabel: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full bg-notes-card px-4 py-3 text-left border-b border-notes-divider/40 last:border-b-0 active:bg-notes-card-elevated transition-colors flex items-center justify-between"
+    >
+      <div>
+        <p className="text-[15px] text-notes-accent">{label}</p>
+        <p className="text-[12px] text-notes-muted/50 mt-0.5">{sublabel}</p>
+      </div>
+      <svg className="w-4 h-4 text-notes-muted/30 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+      </svg>
+    </button>
   );
 }

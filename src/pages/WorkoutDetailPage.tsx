@@ -18,6 +18,7 @@ export function WorkoutDetailPage() {
 
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (workout) {
@@ -28,8 +29,8 @@ export function WorkoutDetailPage() {
 
   if (!workout) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-notes-muted">Workout not found</p>
+      <div className="flex items-center justify-center h-full animate-fade-in">
+        <p className="text-notes-muted text-[15px]">Workout not found</p>
       </div>
     );
   }
@@ -55,67 +56,96 @@ export function WorkoutDetailPage() {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   }
 
+  const fullDate = new Date(workout.date + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full animate-fade-in">
       {/* Nav bar */}
-      <div className="flex items-center gap-2 px-4 pt-4 pb-1 sticky top-0 z-10 bg-notes-bg/90 backdrop-blur-xl">
+      <div
+        className="flex items-center gap-3 px-3 pt-3 pb-2 sticky top-0 z-10 bg-notes-bg/80 backdrop-blur-2xl"
+        style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0.75rem))' }}
+      >
         <button
           onClick={() => navigate('/')}
-          className="text-notes-accent text-[15px] font-medium flex items-center gap-0.5 active:opacity-60 transition-opacity"
+          className="text-notes-accent text-[17px] flex items-center gap-0 active:opacity-50 transition-opacity -ml-1"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          <svg className="w-[28px] h-[28px]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Workouts
+          <span className="-ml-1">Workouts</span>
         </button>
         <div className="flex-1" />
-        <span className="text-[11px] text-notes-muted">{formatDate(workout.date)}</span>
-        <button onClick={handleDelete} className="text-notes-danger text-[11px] font-medium ml-2 active:opacity-60 transition-opacity">
-          Delete
-        </button>
+        {showDeleteConfirm ? (
+          <div className="flex items-center gap-2 animate-scale-in">
+            <span className="text-[13px] text-notes-muted">Delete?</span>
+            <button onClick={handleDelete} className="text-[13px] text-notes-danger font-semibold active:opacity-50">Yes</button>
+            <button onClick={() => setShowDeleteConfirm(false)} className="text-[13px] text-notes-muted font-medium active:opacity-50">No</button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 active:opacity-50 transition-opacity"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF453A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* Note body — the whole thing is the editor */}
+      {/* Note body */}
       <div className="flex-1 px-5 pb-32">
-        {/* Title — large, bold, like Apple Notes */}
+        {/* Title */}
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleTitleBlur}
           placeholder="Title"
-          className="text-[28px] font-bold text-notes-text bg-transparent w-full focus:outline-none placeholder:text-notes-muted/25 tracking-tight mt-2 mb-1"
+          className="text-[28px] font-bold text-notes-text bg-transparent w-full placeholder:text-notes-muted/20 tracking-[0.01em] mt-1 mb-0.5 leading-tight"
         />
 
-        {/* Date subtitle */}
-        <p className="text-[13px] text-notes-muted mb-4">
-          {new Date(workout.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+        {/* Date */}
+        <p className="text-[13px] text-notes-muted/70 mb-5 tracking-wide">
+          {fullDate}
         </p>
 
-        {/* Notes field — freeform text like Apple Notes body */}
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={handleNotesBlur}
-          placeholder="Notes..."
-          rows={1}
-          className="w-full text-[15px] text-notes-text-secondary bg-transparent resize-none focus:outline-none placeholder:text-notes-muted/25 leading-relaxed mb-4"
-          style={{ minHeight: notes ? undefined : '0px' }}
-        />
+        {/* Divider */}
+        {(exercises.length > 0 || notes) && (
+          <div className="h-px bg-notes-divider/40 mb-5" />
+        )}
 
-        {/* Exercises — rendered inline like note content */}
-        {exercises.map((e) => (
-          <InlineExercise key={e.id} entry={e} />
-        ))}
+        {/* Notes */}
+        {(notes || exercises.length === 0) && (
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={handleNotesBlur}
+            placeholder={exercises.length === 0 ? "Start typing or add an exercise below..." : "Notes..."}
+            className="w-full text-[16px] text-notes-text-secondary bg-transparent resize-none placeholder:text-notes-muted/20 leading-[1.6] mb-5 min-h-0"
+          />
+        )}
 
-        {/* Inline typing area — always at the end, like the next line in a note */}
+        {/* Exercises */}
+        <div className="stagger-children">
+          {exercises.map((e) => (
+            <InlineExercise key={e.id} entry={e} />
+          ))}
+        </div>
+
+        {/* Inline input */}
         <InlineInput
           workoutId={workout.id!}
           defaultUnit={prefs?.defaultUnit ?? 'lbs'}
           onAdded={scrollToBottom}
         />
 
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-4" />
       </div>
     </div>
   );

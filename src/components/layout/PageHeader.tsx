@@ -7,9 +7,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, right }: PageHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-4 pt-6 pb-1">
-      <h1 className="text-[34px] font-bold tracking-tight text-notes-text">{title}</h1>
-      {right && <div>{right}</div>}
+    <div className="flex items-end justify-between px-5 pt-8 pb-2"
+      style={{ paddingTop: 'max(2rem, env(safe-area-inset-top, 2rem))' }}
+    >
+      <h1 className="text-[34px] font-bold tracking-[0.01em] text-notes-text leading-tight">{title}</h1>
+      {right && <div className="pb-1">{right}</div>}
     </div>
   );
 }

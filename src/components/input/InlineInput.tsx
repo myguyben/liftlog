@@ -56,7 +56,6 @@ export function InlineInput({ workoutId, defaultUnit, onAdded }: InlineInputProp
     }
 
     await updateExerciseStats(parsed.name, weight, unit, reps);
-
     clear();
     search('');
     onAdded?.();
@@ -66,49 +65,59 @@ export function InlineInput({ workoutId, defaultUnit, onAdded }: InlineInputProp
   const showSuggestions = suggestions.length > 0 && input.trim().length > 0;
 
   return (
-    <div className="relative">
-      {/* Autocomplete — floating above the input line */}
+    <div className="relative mt-2">
+      {/* Autocomplete */}
       {showSuggestions && (
-        <div className="mb-2 bg-notes-card rounded-[var(--radius-card)] border border-notes-divider/50 overflow-hidden">
-          {suggestions.map((t) => (
+        <div className="mb-3 rounded-[var(--radius-card)] overflow-hidden border border-notes-divider/40 bg-notes-card animate-slide-down">
+          {suggestions.map((t, i) => (
             <button
               key={t.id}
               onClick={() => handleSelectTemplate(t)}
-              className="w-full text-left px-4 py-2.5 active:bg-notes-fill transition-colors border-b border-notes-divider/30 last:border-b-0"
+              className="w-full text-left px-4 py-3 active:bg-notes-fill transition-colors flex items-baseline gap-2"
+              style={{ animationDelay: `${i * 30}ms` }}
             >
-              <span className="text-[14px] text-notes-text">{t.name}</span>
-              <span className="text-[11px] text-notes-muted ml-2">{t.equipment}</span>
+              <span className="text-[15px] text-notes-text font-medium">{t.name}</span>
+              <span className="text-[12px] text-notes-muted/60 ml-auto flex-shrink-0">{t.equipment}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Parse preview — subtle hint below suggestions */}
+      {/* Parse preview */}
       {parsed && parsed.name && !showSuggestions && (
-        <div className="text-[12px] text-notes-muted/60 mb-1 flex items-center gap-1.5">
-          <span className="text-notes-accent/70">{parsed.name}</span>
-          {parsed.weight != null && <span>· {parsed.weight}{parsed.unit ?? defaultUnit}</span>}
-          {parsed.reps != null && <span>· {parsed.reps}r</span>}
-          {parsed.sets != null && <span>· {parsed.sets}s</span>}
-          <span className="text-notes-muted/40 ml-1">↵ to add</span>
+        <div className="text-[13px] mb-1.5 flex items-center gap-2 animate-fade-in">
+          <span className="text-notes-accent font-medium">{parsed.name}</span>
+          <span className="text-notes-muted/50">
+            {[
+              parsed.weight != null ? `${parsed.weight}${parsed.unit ?? defaultUnit}` : null,
+              parsed.reps != null ? `${parsed.reps} reps` : null,
+              parsed.sets != null ? `${parsed.sets} sets` : null,
+            ]
+              .filter(Boolean)
+              .join(' \u00b7 ')}
+          </span>
+          <span className="text-notes-muted/30 text-[12px]">press enter</span>
         </div>
       )}
 
-      {/* The input line — looks like the next line of the note */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={input}
-        onChange={(e) => handleChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            handleSubmit();
-          }
-        }}
-        placeholder="Add exercise..."
-        className="w-full text-[15px] text-notes-text bg-transparent focus:outline-none placeholder:text-notes-muted/25 leading-relaxed py-1 caret-notes-accent"
-      />
+      {/* Input */}
+      <div className="flex items-center gap-2">
+        <div className="w-[22px] h-[22px] rounded-full border border-dashed border-notes-muted/20 flex-shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+          placeholder="Add exercise..."
+          className="flex-1 text-[16px] text-notes-text bg-transparent placeholder:text-notes-muted/20 leading-snug py-1.5 caret-notes-accent"
+        />
+      </div>
     </div>
   );
 }
