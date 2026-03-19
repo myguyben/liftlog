@@ -3,6 +3,14 @@ import SwiftUI
 struct SettingsView: View {
 
     @AppStorage("defaultUnit") private var defaultUnit = "lbs"
+    @AppStorage("aiEnabled") private var aiEnabled = true
+
+    // Personal info for AI recommendations
+    @AppStorage("userBodyWeight") private var bodyWeight = ""
+    @AppStorage("userExperience") private var experience = "intermediate"
+    @AppStorage("userTrainingGoal") private var trainingGoal = "strength"
+    @AppStorage("userTrainingDays") private var trainingDays = 4
+    @AppStorage("userNotes") private var userNotes = ""
 
     @State private var showExportAlert = false
     @State private var showImportAlert = false
@@ -27,6 +35,95 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Preferences")
+                        .foregroundColor(.muted)
+                }
+                .listRowBackground(Color.card)
+
+                // MARK: - Smart Recommendations
+                Section {
+                    Toggle(isOn: $aiEnabled) {
+                        Label("Smart Recommendations", systemImage: "brain")
+                            .foregroundColor(.textPrimary)
+                    }
+                    .tint(.accent)
+
+                    if aiEnabled {
+                        Text("Suggests weight, reps, and deloads based on your training history.")
+                            .font(.caption)
+                            .foregroundColor(.muted)
+                    }
+                } header: {
+                    Text("AI Coach")
+                        .foregroundColor(.muted)
+                }
+                .listRowBackground(Color.card)
+
+                // MARK: - Personal Info
+                Section {
+                    HStack {
+                        Label("Body Weight", systemImage: "figure.stand")
+                            .foregroundColor(.textPrimary)
+                        Spacer()
+                        TextField("e.g. 180", text: $bodyWeight)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .foregroundColor(.textSecondary)
+                            .frame(width: 80)
+                        Text(defaultUnit)
+                            .foregroundColor(.muted)
+                            .font(.subheadline)
+                    }
+
+                    HStack {
+                        Label("Experience", systemImage: "chart.bar.fill")
+                            .foregroundColor(.textPrimary)
+                        Spacer()
+                        Picker("", selection: $experience) {
+                            Text("Beginner").tag("beginner")
+                            Text("Intermediate").tag("intermediate")
+                            Text("Advanced").tag("advanced")
+                        }
+                        .tint(.textSecondary)
+                    }
+
+                    HStack {
+                        Label("Goal", systemImage: "target")
+                            .foregroundColor(.textPrimary)
+                        Spacer()
+                        Picker("", selection: $trainingGoal) {
+                            Text("Strength").tag("strength")
+                            Text("Hypertrophy").tag("hypertrophy")
+                            Text("Endurance").tag("endurance")
+                            Text("General Fitness").tag("general")
+                        }
+                        .tint(.textSecondary)
+                    }
+
+                    HStack {
+                        Label("Days / Week", systemImage: "calendar")
+                            .foregroundColor(.textPrimary)
+                        Spacer()
+                        Picker("", selection: $trainingDays) {
+                            ForEach(1...7, id: \.self) { day in
+                                Text("\(day)").tag(day)
+                            }
+                        }
+                        .tint(.textSecondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Injuries / Notes", systemImage: "note.text")
+                            .foregroundColor(.textPrimary)
+                        TextField("e.g. bad left shoulder, avoid overhead", text: $userNotes, axis: .vertical)
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+                            .lineLimit(2...4)
+                    }
+                } header: {
+                    Text("About You")
+                        .foregroundColor(.muted)
+                } footer: {
+                    Text("Helps the AI tailor recommendations to your level and goals.")
                         .foregroundColor(.muted)
                 }
                 .listRowBackground(Color.card)

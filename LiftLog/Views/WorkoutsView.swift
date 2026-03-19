@@ -47,7 +47,7 @@ struct WorkoutsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
-            .padding(.bottom, 80) // space for floating button
+            .padding(.bottom, 80)
         }
     }
 
@@ -87,6 +87,8 @@ struct WorkoutsView: View {
 
     private func createNewWorkout() {
         let workout = Workout()
+        workout.status = "active"
+        workout.startedAt = .now
         modelContext.insert(workout)
         try? modelContext.save()
         navigateToNewWorkout = workout
@@ -101,7 +103,7 @@ struct WorkoutRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Title + date
+            // Title + status/date
             HStack {
                 Text(displayTitle)
                     .font(.headline)
@@ -110,15 +112,37 @@ struct WorkoutRowView: View {
 
                 Spacer()
 
-                Text(workout.createdAt, style: .relative)
-                    .font(.caption)
-                    .foregroundColor(.muted)
+                if workout.isActive {
+                    TimelineView(.periodic(from: .now, by: 1)) { _ in
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.success)
+                                .frame(width: 7, height: 7)
+                            Text(workout.elapsedDuration.timerText)
+                                .font(.system(.caption, design: .monospaced))
+                                .fontWeight(.medium)
+                                .foregroundColor(.success)
+                        }
+                    }
+                } else {
+                    Text(workout.createdAt, style: .relative)
+                        .font(.caption)
+                        .foregroundColor(.muted)
+                }
             }
 
-            // Exercise count + set count
+            // Exercise count + set count + duration
             let exercises = workout.exercises
             let totalSets = exercises.reduce(0) { $0 + $1.sets.count }
-            Text("\(exercises.count) exercise\(exercises.count == 1 ? "" : "s") \u{2022} \(totalSets) set\(totalSets == 1 ? "" : "s")")
+            let parts: [String] = {
+                var p = ["\(exercises.count) exercise\(exercises.count == 1 ? "" : "s")",
+                         "\(totalSets) set\(totalSets == 1 ? "" : "s")"]
+                if workout.startedAt != nil {
+                    p.append(workout.elapsedDuration.shortDurationText)
+                }
+                return p
+            }()
+            Text(parts.joined(separator: " \u{2022} "))
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
 

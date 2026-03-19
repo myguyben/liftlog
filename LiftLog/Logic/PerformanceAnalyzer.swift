@@ -130,7 +130,7 @@ struct PerformanceAnalyzer {
     }
 
     /// Composite fatigue score 0-100
-    static func analyzeFatigue(sessions: [DetailedSessionSnapshot], profile: ExerciseProgressProfile?) -> FatigueSignal {
+    static func analyzeFatigue(sessions: [DetailedSessionSnapshot], profile: ExerciseProgressProfile?, deloadSessionThreshold: Int = 16) -> FatigueSignal {
         guard let latest = sessions.first else {
             return FatigueSignal(score: 0, factors: [])
         }
@@ -176,10 +176,10 @@ struct PerformanceAnalyzer {
             }
         }
 
-        // Factor 4: Sessions since deload (0-20 points, threshold raised to 16)
+        // Factor 4: Sessions since deload (0-20 points)
         let sessionsSinceDeload = profile?.sessionsSinceDeload ?? sessions.count
-        if sessionsSinceDeload > 16 {
-            let deloadScore = min(20, Double(sessionsSinceDeload - 16) * 4)
+        if sessionsSinceDeload > deloadSessionThreshold {
+            let deloadScore = min(20, Double(sessionsSinceDeload - deloadSessionThreshold) * 4)
             score += deloadScore
             factors.append("\(sessionsSinceDeload) sessions since last deload")
         }

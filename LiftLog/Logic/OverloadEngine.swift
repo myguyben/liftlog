@@ -139,6 +139,48 @@ struct OverloadRecommendation {
     }
 }
 
+// MARK: - User Preferences
+
+struct UserPreferences {
+    var experience: String   // "beginner", "intermediate", "advanced"
+    var trainingGoal: String // "strength", "hypertrophy", "endurance", "general"
+    var trainingDays: Int
+    var bodyWeight: Double?
+
+    /// Default rep range based on the user's training goal
+    var goalMinReps: Int {
+        switch trainingGoal {
+        case "strength": return 3
+        case "hypertrophy": return 8
+        case "endurance": return 15
+        default: return 6
+        }
+    }
+
+    var goalMaxReps: Int {
+        switch trainingGoal {
+        case "strength": return 5
+        case "hypertrophy": return 12
+        case "endurance": return 20
+        default: return 12
+        }
+    }
+
+    /// Fatigue deload threshold — beginners fatigue faster, advanced lifters tolerate more
+    var fatigueDeloadThreshold: Double {
+        switch experience {
+        case "beginner": return 50
+        case "advanced": return 70
+        default: return 60
+        }
+    }
+
+    /// Sessions-since-deload threshold, scaled by training frequency
+    var deloadSessionThreshold: Int {
+        max(12, 24 - trainingDays * 2)
+    }
+}
+
 // MARK: - Overload Engine
 
 struct OverloadEngine {
@@ -147,28 +189,44 @@ struct OverloadEngine {
     static func recommend(
         sessions: [DetailedSessionSnapshot],
         profile: ExerciseProgressProfile?,
-        category: ExerciseCategory
+        category: ExerciseCategory,
+        preferences: UserPreferences? = nil
     ) -> OverloadRecommendation? {
 
         guard let latest = sessions.first else { return nil }
 
         let unit = latest.unit
         let confidence = confidenceLevel(sessionCount: sessions.count)
-        let minReps = profile?.typicalMinReps ?? category.defaultMinReps
-        let maxReps = profile?.typicalMaxReps ?? category.defaultMaxReps
 
-        let fatigue = PerformanceAnalyzer.analyzeFatigue(sessions: sessions, profile: profile)
+        // Use profile rep range, then goal-based defaults, then category defaults
+        let minReps: Int
+        let maxReps: Int
+        if let p = profile, p.typicalMinReps != category.defaultMinReps || p.typicalMaxReps != category.defaultMaxReps {
+            // Profile has learned rep ranges
+            minReps = p.typicalMinReps
+            maxReps = p.typicalMaxReps
+        } else if let prefs = preferences {
+            minReps = prefs.goalMinReps
+            maxReps = prefs.goalMaxReps
+        } else {
+            minReps = profile?.typicalMinReps ?? category.defaultMinReps
+            maxReps = profile?.typicalMaxReps ?? category.defaultMaxReps
+        }
+
+        let fatigueThreshold = preferences?.fatigueDeloadThreshold ?? 60.0
+        let deloadSessionThreshold = preferences?.deloadSessionThreshold ?? 16
+        let fatigue = PerformanceAnalyzer.analyzeFatigue(sessions: sessions, profile: profile, deloadSessionThreshold: deloadSessionThreshold)
         let plateau = PerformanceAnalyzer.detectPlateau(sessions: sessions, profile: profile)
         let repRange = PerformanceAnalyzer.detectRepRangePosition(sessions: sessions, profile: profile)
-        let volumeTrend = PerformanceAnalyzer.analyzeVolumeTrend(sessions: sessions)
+        _ = PerformanceAnalyzer.analyzeVolumeTrend(sessions: sessions)
 
         let currentWeight = latest.topWeight
         let workingReps = latest.workingSetReps
 
         // ── Priority 1: Deload ──
-        // Fatigue > 60, OR stagnated at same weight for 3 consecutive sessions
+        // Fatigue above threshold, OR stagnated at same weight for 3 consecutive sessions
         let stagnated3x = hasStagnatedAtWeight(sessions: sessions, maxReps: maxReps, times: 3)
-        if fatigue.score > 60 || stagnated3x {
+        if fatigue.score > fatigueThreshold || stagnated3x {
             let increment = category.weightIncrement(for: unit)
             let deloadWeight = category == .bodyweight ? 0.0 : roundToNearest(currentWeight * 0.85, increment: increment)
             let reason = fatigue.score > 60

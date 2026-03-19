@@ -38,6 +38,10 @@ struct LiftLogApp: App {
                 .preferredColorScheme(.dark)
                 .task {
                     await seedOnFirstLaunch()
+                    autoEndStaleWorkouts()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                    autoEndStaleWorkouts()
                 }
         }
         .modelContainer(modelContainer)
@@ -47,5 +51,25 @@ struct LiftLogApp: App {
     private func seedOnFirstLaunch() {
         let context = modelContainer.mainContext
         ExerciseSeeder.seedExercises(context: context)
+    }
+
+    @MainActor
+    private func autoEndStaleWorkouts() {
+        let context = modelContainer.mainContext
+        let activeStatus = "active"
+        let predicate = #Predicate<Workout> { $0.status == activeStatus }
+        let descriptor = FetchDescriptor<Workout>(predicate: predicate)
+        guard let activeWorkouts = try? context.fetch(descriptor) else { return }
+
+        var changed = false
+        for workout in activeWorkouts where workout.isStale {
+            workout.completedAt = workout.lastSetCompletedAt ?? workout.startedAt ?? .now
+            workout.status = "completed"
+            workout.updatedAt = .now
+            changed = true
+        }
+        if changed {
+            try? context.save()
+        }
     }
 }

@@ -8,6 +8,8 @@ struct WorkoutDetailView: View {
 
     @Bindable var workout: Workout
 
+    @AppStorage("defaultUnit") private var defaultUnit = "lbs"
+
     @State private var showDeleteConfirmation = false
     @State private var newExerciseText = ""
     @State private var editingInsertIndex: Int? = nil
@@ -41,6 +43,13 @@ struct WorkoutDetailView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
 
+                    // Timer bar
+                    if workout.startedAt != nil {
+                        timerBar
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                    }
+
                     // Notes — like the first line of a note
                     TextField("Notes...", text: $workout.notes, axis: .vertical)
                         .font(.body)
@@ -61,7 +70,17 @@ struct WorkoutDetailView: View {
                             sessions: sessionsForExercise(exercise),
                             profile: profileCache[exercise.name.lowercased()],
                             allTemplates: allTemplates,
-                            onSetCompleted: { refreshCacheForExercise(exercise.name) }
+                            onSetCompleted: {
+                                workout.lastSetCompletedAt = .now
+                                // Auto-reopen: if completed and user marks a new set, reactivate
+                                if workout.isCompleted {
+                                    workout.completedAt = nil
+                                    workout.status = "active"
+                                }
+                                workout.updatedAt = .now
+                                try? modelContext.save()
+                                refreshCacheForExercise(exercise.name)
+                            }
                         )
                         .padding(.horizontal, 16)
                     }
@@ -93,6 +112,34 @@ struct WorkoutDetailView: View {
         }
         .task {
             loadAllCaches()
+        }
+    }
+
+    // MARK: - Timer Bar
+
+    @ViewBuilder
+    private var timerBar: some View {
+        if workout.isCompleted {
+            // Completed — static duration with checkmark
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.success)
+                Text(workout.elapsedDuration.shortDurationText)
+                    .font(.subheadline)
+                    .foregroundColor(.muted)
+                Spacer()
+            }
+        } else {
+            // Active — live elapsed timer
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                HStack {
+                    Text(workout.elapsedDuration.timerText)
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundColor(.accent)
+                    Spacer()
+                }
+            }
         }
     }
 
@@ -260,8 +307,14 @@ struct WorkoutDetailView: View {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        let parsed = ExerciseParser.parse(trimmed)
+        var parsed = ExerciseParser.parse(trimmed)
         let name = parsed.name.isEmpty ? trimmed : parsed.name
+
+        // Use the user's default unit when the parser didn't detect an explicit unit
+        let inputHasExplicitUnit = trimmed.range(of: #"(lbs?|pounds?|kg|kgs?|kilograms?|#)"#, options: .regularExpression, range: nil, locale: nil) != nil
+        if !inputHasExplicitUnit {
+            parsed.unit = defaultUnit
+        }
 
         // Shift existing exercises down
         let sorted = workout.exercises.sorted { $0.order < $1.order }
@@ -308,52 +361,6 @@ struct WorkoutDetailView: View {
             modelContext.insert(stats)
         }
         try? modelContext.save()
-    }
-
-    /// Called when a set's isCompleted changes — updates profile with current data
-    func updateProfileForExercise(_ exerciseName: String) {
-        let sessions = sessionsForExerciseName(exerciseName)
-        guard let currentSession = sessions.first else { return }
-        let profile = fetchOrCreateProfile(for: exerciseName)
-        let previousSessions = Array(sessions.dropFirst())
-        let template = findTemplate(for: exerciseName)
-        let category = ExerciseCategory.classify(name: exerciseName, template: template)
-        ProfileUpdater.updateProfile(
-            profile: profile,
-            currentSession: currentSession,
-            previousSessions: previousSessions,
-            template: template,
-            category: category
-        )
-        try? modelContext.save()
-        refreshCacheForExercise(exerciseName)
-    }
-
-    /// Build sessions including current workout's completed sets for an exercise by name
-    private func sessionsForExerciseName(_ exerciseName: String) -> [DetailedSessionSnapshot] {
-        let key = exerciseName.lowercased()
-        let historicalSessions = sessionCache[key] ?? fetchRecentSessions(for: exerciseName)
-
-        // Build current session from this workout's completed sets
-        let exercise = workout.exercises.first { $0.name.lowercased() == key }
-        let completedSets = exercise?.sortedSets.filter { $0.isCompleted } ?? []
-        guard !completedSets.isEmpty else { return historicalSessions }
-
-        let setSnapshots = completedSets.map { s in
-            SetSnapshot(
-                setNumber: s.setNumber,
-                weight: s.weight,
-                reps: s.reps,
-                rpe: s.rpe,
-                isCompleted: s.isCompleted
-            )
-        }
-        let currentSession = DetailedSessionSnapshot(
-            sets: setSnapshots,
-            date: workout.createdAt,
-            unit: completedSets.first?.unit ?? "lbs"
-        )
-        return [currentSession] + historicalSessions
     }
 
     private func fetchRecentSessions(for exerciseName: String) -> [DetailedSessionSnapshot] {
@@ -460,11 +467,25 @@ struct InlineInsertField: View {
 struct InlineExerciseView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("aiEnabled") private var aiEnabled = true
+    @AppStorage("userBodyWeight") private var bodyWeightStr = ""
+    @AppStorage("userExperience") private var experience = "intermediate"
+    @AppStorage("userTrainingGoal") private var trainingGoal = "strength"
+    @AppStorage("userTrainingDays") private var trainingDays = 4
     @Bindable var exercise: ExerciseEntry
     var sessions: [DetailedSessionSnapshot]
     var profile: ExerciseProgressProfile?
     var allTemplates: [ExerciseTemplate]
     var onSetCompleted: () -> Void
+
+    private var userPreferences: UserPreferences {
+        UserPreferences(
+            experience: experience,
+            trainingGoal: trainingGoal,
+            trainingDays: trainingDays,
+            bodyWeight: Double(bodyWeightStr)
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -495,7 +516,7 @@ struct InlineExerciseView: View {
             }
 
             // Overload badge — tappable pill with color coding
-            if let rec = recommendation {
+            if aiEnabled, let rec = recommendation {
                 Button { applyRecommendation(rec) } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 5) {
@@ -577,14 +598,16 @@ struct InlineExerciseView: View {
             return OverloadEngine.recommend(
                 sessions: [currentSession],
                 profile: profile,
-                category: category
+                category: category,
+                preferences: userPreferences
             )
         }
 
         return OverloadEngine.recommend(
             sessions: sessions,
             profile: profile,
-            category: category
+            category: category,
+            preferences: userPreferences
         )
     }
 
@@ -695,6 +718,23 @@ struct InlineExerciseView: View {
             template: template,
             category: category
         )
+
+        // Track personal records
+        let statsPredicate = #Predicate<UserExerciseStats> { $0.exerciseName == exerciseName }
+        let statsDescriptor = FetchDescriptor<UserExerciseStats>(predicate: statsPredicate)
+        if let stats = try? modelContext.fetch(statsDescriptor).first {
+            for set in completedSets {
+                let currentVolume = set.weight * Double(set.reps)
+                let existingVolume = (stats.prWeight ?? 0) * Double(stats.prReps ?? 0)
+                if currentVolume > existingVolume {
+                    stats.prWeight = set.weight
+                    stats.prUnit = set.unit
+                    stats.prReps = set.reps
+                    stats.prDate = .now
+                }
+            }
+        }
+
         try? modelContext.save()
     }
 }
